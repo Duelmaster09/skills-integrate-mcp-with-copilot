@@ -1,8 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
   const activitiesList = document.getElementById("activities-list");
-  const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const emailInput = document.getElementById("email");
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft =
           details.max_participants - details.participants.length;
+        const isAvailable = spotsLeft > 0;
 
         // Create participants HTML with delete icons instead of bullet points
         const participantsHTML =
@@ -38,22 +39,26 @@ document.addEventListener("DOMContentLoaded", () => {
             : `<p><em>No participants yet</em></p>`;
 
         activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
-          <div class="participants-container">
-            ${participantsHTML}
+          <div class="activity-info">
+            <h4>${name}</h4>
+            <p>${details.description}</p>
+            <p><strong>Schedule:</strong> ${details.schedule}</p>
+            <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+            <div class="participants-container">
+              ${participantsHTML}
+            </div>
           </div>
+          <button class="register-btn" data-activity="${name}" ${!isAvailable ? "disabled" : ""}>
+            ${isAvailable ? "Register" : "Full"}
+          </button>
         `;
 
         activitiesList.appendChild(activityCard);
+      });
 
-        // Add option to select dropdown
-        const option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
-        activitySelect.appendChild(option);
+      // Add event listeners to register buttons
+      document.querySelectorAll(".register-btn").forEach((button) => {
+        button.addEventListener("click", handleRegisterClick);
       });
 
       // Add event listeners to delete buttons
@@ -65,6 +70,16 @@ document.addEventListener("DOMContentLoaded", () => {
         "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
     }
+  }
+
+  // Handle register button click
+  function handleRegisterClick(event) {
+    const button = event.target;
+    const activity = button.getAttribute("data-activity");
+    
+    // Focus on email input and populate activity
+    emailInput.focus();
+    emailInput.scrollIntoView({ behavior: "smooth" });
   }
 
   // Handle unregister functionality
@@ -114,8 +129,20 @@ document.addEventListener("DOMContentLoaded", () => {
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const email = document.getElementById("email").value;
-    const activity = document.getElementById("activity").value;
+    const email = emailInput.value;
+    
+    // Find which register button was intended (the first card's register button if available)
+    const registerButtons = document.querySelectorAll(".register-btn:not(:disabled)");
+    if (registerButtons.length === 0) {
+      messageDiv.textContent = "No activities available to register for.";
+      messageDiv.className = "error";
+      messageDiv.classList.remove("hidden");
+      return;
+    }
+
+    // Get the first available activity
+    const firstRegisterBtn = registerButtons[0];
+    const activity = firstRegisterBtn.getAttribute("data-activity");
 
     try {
       const response = await fetch(
